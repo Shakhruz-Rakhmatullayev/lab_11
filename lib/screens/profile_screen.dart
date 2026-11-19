@@ -4,6 +4,7 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/sheet.dart';
+import 'vault_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.onBack});
@@ -118,6 +119,16 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.person_outline_rounded,
                   title: 'Personal information',
                   onTap: () => _showEditProfile(context),
+                ),
+                _SettingTile(
+                  icon: Icons.lock_outline_rounded,
+                  title: 'Notes & Settings Vault',
+                  trailingText: '${state.notes.length}',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const VaultScreen(),
+                    ),
+                  ),
                 ),
                 _SettingTile(
                   icon: Icons.alarm_rounded,

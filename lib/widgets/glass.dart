@@ -506,6 +506,7 @@ class GlassTextField extends StatelessWidget {
     required this.hint,
     this.keyboardType,
     this.onChanged,
+    this.onSubmitted,
     this.autofocus = false,
   });
 
@@ -513,6 +514,7 @@ class GlassTextField extends StatelessWidget {
   final String hint;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final bool autofocus;
 
   @override
@@ -525,6 +527,7 @@ class GlassTextField extends StatelessWidget {
         controller: controller,
         keyboardType: keyboardType,
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
         autofocus: autofocus,
         style: const TextStyle(color: Colors.white, fontSize: 15),
         decoration: InputDecoration(

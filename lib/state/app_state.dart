@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/note_item.dart';
+import '../utils/format.dart';
+
+/// SharedPreferences keys for the LW11 Notes & Settings Vault.
+const kDarkModeKey = 'app_theme_dark_mode';
+const kDisplayNameKey = 'user_display_name';
+const kNotesKey = 'notes_vault_items';
+const kGuestName = 'Guest User';
+
 class Habit {
   Habit({
     required this.id,
@@ -41,6 +50,12 @@ class AppState extends ChangeNotifier {
   String experience = 'Intermediate';
   TimeOfDay reminder = const TimeOfDay(hour: 8, minute: 0);
   final Set<String> cautionAreas = {'Lower back'};
+
+  /// Name shown in the Vault header; [kGuestName] until the user saves one.
+  String displayName = kGuestName;
+
+  /// Notes Vault, newest first. Saved to disk as one JSON string.
+  final List<NoteItem> notes = [];
 
   final List<Habit> habits = [
     Habit(
@@ -97,11 +112,22 @@ class AppState extends ChangeNotifier {
   void _loadSettings() {
     final p = _prefs;
     if (p == null) return;
-    final mode = p.getString('themeMode');
-    themeMode = ThemeMode.values.firstWhere(
-      (m) => m.name == mode,
-      orElse: () => themeMode,
-    );
+    // The dark-mode bool wins; the older 'themeMode' string is only used
+    // when the user picked "System" (which clears the bool).
+    final dark = p.getBool(kDarkModeKey);
+    if (dark != null) {
+      themeMode = dark ? ThemeMode.dark : ThemeMode.light;
+    } else {
+      final mode = p.getString('themeMode');
+      themeMode = ThemeMode.values.firstWhere(
+        (m) => m.name == mode,
+        orElse: () => themeMode,
+      );
+    }
+    displayName = p.getString(kDisplayNameKey) ?? kGuestName;
+    notes
+      ..clear()
+      ..addAll(NoteItem.decodeList(p.getString(kNotesKey)));
     sound = p.getBool('sound') ?? sound;
     notifications = p.getBool('notifications') ?? notifications;
     experience = p.getString('experience') ?? experience;
@@ -166,10 +192,66 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get isDarkMode => themeMode == ThemeMode.dark;
+
   void setThemeMode(ThemeMode mode) {
     themeMode = mode;
     _prefs?.setString('themeMode', mode.name);
+    if (mode == ThemeMode.system) {
+      _prefs?.remove(kDarkModeKey);
+    } else {
+      _prefs?.setBool(kDarkModeKey, mode == ThemeMode.dark);
+    }
     notifyListeners();
+  }
+
+  void setDarkMode(bool dark) =>
+      setThemeMode(dark ? ThemeMode.dark : ThemeMode.light);
+
+  void setDisplayName(String name) {
+    final trimmed = name.trim();
+    displayName = trimmed.isEmpty ? kGuestName : trimmed;
+    if (trimmed.isEmpty) {
+      _prefs?.remove(kDisplayNameKey);
+    } else {
+      _prefs?.setString(kDisplayNameKey, trimmed);
+    }
+    notifyListeners();
+  }
+
+  // ---- Notes Vault: every change re-encodes the list and writes it. ----
+
+  void _saveNotes() {
+    _prefs?.setString(kNotesKey, NoteItem.encodeList(notes));
+    notifyListeners();
+  }
+
+  void addNote(String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return;
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}';
+    notes.insert(
+      0,
+      NoteItem(
+        id: now.microsecondsSinceEpoch.toString(),
+        title: trimmed,
+        dateText: '${formatLongDate(now)} · $time',
+      ),
+    );
+    _saveNotes();
+  }
+
+  void toggleNote(NoteItem note) {
+    note.isCompleted = !note.isCompleted;
+    _saveNotes();
+  }
+
+  void deleteNote(NoteItem note) {
+    notes.removeWhere((n) => n.id == note.id);
+    _saveNotes();
   }
 
   void setSound(bool v) {

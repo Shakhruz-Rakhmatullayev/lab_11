@@ -11,6 +11,7 @@ HabitFlow is a Flutter app for tracking habits and fitness. It has a glass-style
 - **Product details**: tapping a product opens its detail screen with a Hero image transition, a swipeable photo carousel with a page counter (1 / 3) and animated dots, a category badge, the rating and reviews, the full description, and a sticky "Add to Cart" button. The share button opens a sheet with the product's deep link (`narxoz://store/product/{id}`) and a copy button.
 - **Cart**: the selected products with −/+ buttons to change how many pieces you want and a remove button on each, the total price, an "Order" button that places the order, and a "Clear All" link. The cart is shared with the Catalog through `provider`, so changes on either screen show up on the other right away.
 - **Profile**: personal metrics (age, height, weight) and an editable profile. Settings cover reminder time, sound, notifications, appearance (system, light or dark), experience level, caution areas and units.
+- **Notes & Settings Vault** (Profile → Notes & Settings Vault): a dark-mode switch (`app_theme_dark_mode`), a username field with a Save button (`user_display_name`, falls back to "Guest User"), and a notes list you can add to, check off and delete. The notes are stored as one JSON string (`notes_vault_items`) through `NoteItem.toJson()` / `NoteItem.fromJson()`. Everything is loaded in `main()` before `runApp()`, so the app opens in the saved theme without a white flash, and notes are still there after the app is force-quit.
 - **Saved settings**: the theme, sound, notification, experience, reminder and caution-area settings are stored with `shared_preferences`, so they stay the same between launches.
 
 ## Tech stack
@@ -28,7 +29,9 @@ HabitFlow is a Flutter app for tracking habits and fitness. It has a glass-style
 lib/
 ├── main.dart                # App entry point, theme setup
 ├── data/sample_data.dart    # Demo stats and workout data
-├── models/product.dart      # Product model with type-safe fromJson
+├── models/
+│   ├── note_item.dart       # NoteItem with toJson / fromJson (Vault)
+│   └── product.dart         # Product model with type-safe fromJson
 ├── services/
 │   └── product_service.dart # HTTP fetch, timeout and error handling
 ├── state/
@@ -42,7 +45,8 @@ lib/
 │   ├── catalog_screen.dart  # Loading / feed / error states
 │   ├── product_detail_screen.dart # Hero, photo carousel, Add to Cart
 │   ├── cart_screen.dart     # Cart view + cart badge button
-│   └── profile_screen.dart
+│   ├── profile_screen.dart
+│   └── vault_screen.dart    # LW11 Notes & Settings Vault
 ├── theme/app_theme.dart     # Colors, text styles, light/dark themes
 ├── utils/format.dart        # Formatting helpers
 └── widgets/
@@ -58,8 +62,8 @@ lib/
 Prerequisites: the [Flutter SDK](https://docs.flutter.dev/get-started/install), plus Xcode for iOS/macOS or Android Studio for Android.
 
 ```bash
-git clone https://github.com/Shakhruz-Rakhmatullayev/lab_10.git
-cd lab_10
+git clone https://github.com/Shakhruz-Rakhmatullayev/lab_11.git
+cd lab_11
 flutter pub get
 flutter run
 ```

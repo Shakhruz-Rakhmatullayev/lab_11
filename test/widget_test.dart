@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:habitflow/main.dart';
+import 'package:habitflow/models/note_item.dart';
 import 'package:habitflow/models/product.dart';
 import 'package:habitflow/services/product_service.dart';
 import 'package:habitflow/state/app_state.dart';
@@ -389,5 +390,86 @@ void main() {
     expect(restarted.sound, isFalse);
     expect(restarted.reminder, const TimeOfDay(hour: 21, minute: 30));
     expect(restarted.cautionAreas, containsAll(['Lower back', 'Knees']));
+  });
+
+  group('LW11 Notes & Settings Vault', () {
+    test('NoteItem survives a JSON round-trip', () {
+      final notes = [
+        NoteItem(id: '1', title: 'Buy milk', dateText: 'today'),
+        NoteItem(id: '2', title: 'Lab 11', dateText: 'now', isCompleted: true),
+      ];
+      final raw = NoteItem.encodeList(notes);
+      expect(raw, contains('"isCompleted":true'));
+
+      final back = NoteItem.decodeList(raw);
+      expect(back.map((n) => n.toJson()), notes.map((n) => n.toJson()));
+      expect(NoteItem.decodeList(null), isEmpty);
+      expect(NoteItem.decodeList('not json'), isEmpty);
+    });
+
+    test('everything survives a cold restart', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final first = AppState(prefs: prefs);
+      expect(first.displayName, kGuestName);
+      first
+        ..setDarkMode(true)
+        ..setDisplayName('  Zhasmina  ')
+        ..addNote('First')
+        ..addNote('Second');
+      first.toggleNote(first.notes.last);
+      expect(prefs.getBool(kDarkModeKey), isTrue);
+      expect(prefs.getString(kDisplayNameKey), 'Zhasmina');
+
+      final restarted = AppState(prefs: prefs);
+      expect(restarted.themeMode, ThemeMode.dark);
+      expect(restarted.displayName, 'Zhasmina');
+      expect(restarted.notes.map((n) => n.title), ['Second', 'First']);
+      expect(restarted.notes.last.isCompleted, isTrue);
+
+      restarted.deleteNote(restarted.notes.first);
+      expect(AppState(prefs: prefs).notes.map((n) => n.title), ['First']);
+    });
+
+    testWidgets('vault screen adds, toggles and deletes notes', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final state = AppState(prefs: prefs);
+      await tester.pumpWidget(
+        HabitflowApp(state: state, productService: okService()),
+      );
+      await tester.tap(find.byIcon(Icons.person_outline_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Notes & Settings Vault'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hello, Guest User'), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('nameField')), 'Aru');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hello, Aru'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('darkModeSwitch')));
+      await tester.pumpAndSettle();
+      expect(prefs.getBool(kDarkModeKey), isTrue);
+
+      await tester.enterText(find.byKey(const Key('noteField')), 'Note A');
+      await tester.tap(find.byKey(const Key('addNote')));
+      await tester.pumpAndSettle();
+      expect(find.text('Note A'), findsOneWidget);
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+      expect(
+        NoteItem.decodeList(prefs.getString(kNotesKey)).single.isCompleted,
+        isTrue,
+      );
+
+      await tester.tap(find.byTooltip('Delete note'));
+      await tester.pumpAndSettle();
+      expect(find.text('Note A'), findsNothing);
+      expect(NoteItem.decodeList(prefs.getString(kNotesKey)), isEmpty);
+    });
   });
 }
